@@ -20,9 +20,9 @@ class PayrollRecordForm(forms.ModelForm):
             'rate_per_day': 'Rate per Day',
         }
         widgets = {
-            'employee_id': forms.TextInput(attrs={'placeholder': 'EMP-001'}),
-            'employee_name': forms.TextInput(attrs={'placeholder': 'Juan Dela Cruz'}),
-            'department': forms.TextInput(attrs={'placeholder': 'Accounting'}),
-            'days_worked': forms.NumberInput(attrs={'step': '0.01', 'min': '0'}),
+            'employee_id': forms.TextInput(attrs={'placeholder': 'EMPELite-001'}),
+            'employee_name': forms.TextInput(attrs={'placeholder': 'Tristan Ramos'}),
+            'department': forms.TextInput(attrs={'placeholder': 'IT'}),
+            'days_worked': forms.NumberInput(attrs={'step': '0', 'min': '0'}),
             'rate_per_day': forms.NumberInput(attrs={'step': '0.01', 'min': '0'}),
         }
