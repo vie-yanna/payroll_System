@@ -1,0 +1,37 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payroll System</title>
+    <link rel="stylesheet" href="{% static 'payroll/styles.css' %}">
+</head>
+<body>
+    <header class="site-header">
+        <div class="container header-inner">
+            <a class="brand" href="{% url 'payroll:dashboard' %}">Payroll System</a>
+            <nav>
+                {% if user.is_authenticated %}
+                    {% if user.is_staff %}
+                        <a href="{% url 'payroll:dashboard' %}">Dashboard</a>
+                    {% else %}
+                        <a href="{% url 'payroll:history' %}">Payroll History</a>
+                    {% endif %}
+                    <a href="{% url 'payroll:logout' %}">Logout</a>
+                {% else %}
+                    <a href="{% url 'payroll:login' %}">Login</a>
+                {% endif %}
+            </nav>
+        </div>
+    </header>
+
+    <main class="container content">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="site-footer">
+        <div class="container">Payroll System © 2026</div>
+    </footer>
+</body>
+</html>
