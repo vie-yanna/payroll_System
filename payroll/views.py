@@ -1,16 +1,18 @@
 from decimal import Decimal
 
+from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib.auth.views import LoginView, LogoutView
-from django.db import transaction
 from django.db.models import Sum
+from django.shortcuts import redirect
 from django.urls import reverse_lazy
 from django.views.generic import TemplateView
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from .models import Employee, PayPeriod, PayrollRun, PayrollItem, SalaryComponent
+from .forms import PayrollRecordForm
+from .models import Employee, PayPeriod, PayrollRun, PayrollItem, PayrollRecord, SalaryComponent
 from .serializers import (
     EmployeeSerializer,
     PayPeriodSerializer,
@@ -173,16 +175,62 @@ class PayrollHistoryView(LoginRequiredMixin, TemplateView):
 class DashboardView(StaffRequiredMixin, TemplateView):
     template_name = 'payroll/dashboard.html'
 
+    def get_edit_record(self):
+        record_id = self.request.GET.get('edit')
+        if not record_id:
+            return None
+        return PayrollRecord.objects.filter(pk=record_id).first()
+
+    def post(self, request, *args, **kwargs):
+        action = request.POST.get('action')
+        record_id = request.POST.get('record_id')
+        instance = PayrollRecord.objects.filter(pk=record_id).first() if record_id else None
+        form = PayrollRecordForm(request.POST, instance=instance if action == 'update' else None)
+
+        if not form.is_valid():
+            return self.render_to_response(self.get_context_data(form=form, selected_record=instance))
+
+        record = form.save(commit=False)
+        record.calculate_salary()
+
+        if action == 'compute':
+            messages.info(request, 'Salary computed. Click Save to add it or Update to change the selected record.')
+            return self.render_to_response(
+                self.get_context_data(form=form, selected_record=instance, computed_salary=record.salary)
+            )
+
+        if action == 'update':
+            if not instance:
+                messages.error(request, 'Choose a payroll record to update first.')
+                return self.render_to_response(self.get_context_data(form=form))
+            record.save()
+            messages.success(request, 'Payroll record updated.')
+            return redirect('payroll:dashboard')
+
+        record.pk = None
+        record.save()
+        messages.success(request, 'Payroll record saved.')
+        return redirect('payroll:dashboard')
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         totals = PayrollRun.objects.aggregate(
             total_gross=Sum('total_gross'),
             total_net=Sum('total_net'),
         )
+        selected_record = kwargs.get('selected_record') or self.get_edit_record()
+        form = kwargs.get('form') or PayrollRecordForm(instance=selected_record)
         context.update({
             'employee_count': Employee.objects.filter(active=True).count(),
             'pay_period_count': PayPeriod.objects.count(),
             'payroll_runs': PayrollRun.objects.order_by('-run_date')[:5],
+            'payroll_records': PayrollRecord.objects.all(),
+            'payroll_form': form,
+            'selected_record': selected_record,
+            'computed_salary': kwargs.get(
+                'computed_salary',
+                selected_record.salary if selected_record else None,
+            ),
             'total_gross': totals.get('total_gross') or 0,
             'total_net': totals.get('total_net') or 0,
         })

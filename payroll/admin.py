@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Employee, PayPeriod, PayrollRun, PayrollItem, SalaryComponent
+from .models import Employee, PayPeriod, PayrollRun, PayrollItem, PayrollRecord, SalaryComponent
 
 @admin.register(Employee)
 class EmployeeAdmin(admin.ModelAdmin):
@@ -24,3 +24,9 @@ class PayrollRunAdmin(admin.ModelAdmin):
 class SalaryComponentAdmin(admin.ModelAdmin):
     list_display = ('employee', 'name', 'amount', 'component_type')
     list_filter = ('component_type',)
+
+
+@admin.register(PayrollRecord)
+class PayrollRecordAdmin(admin.ModelAdmin):
+    list_display = ('employee_id', 'employee_name', 'department', 'days_worked', 'rate_per_day', 'salary')
+    search_fields = ('employee_id', 'employee_name', 'department')

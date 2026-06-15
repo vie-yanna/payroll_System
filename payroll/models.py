@@ -75,3 +75,28 @@ class PayrollItem(models.Model):
 
     def __str__(self):
         return f"{self.employee} - {self.payroll_run}"
+
+
+class PayrollRecord(models.Model):
+    employee_id = models.CharField(max_length=30)
+    employee_name = models.CharField(max_length=150)
+    department = models.CharField(max_length=100)
+    days_worked = models.DecimalField(max_digits=8, decimal_places=2, validators=[MinValueValidator(0)])
+    rate_per_day = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
+    salary = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['employee_id', 'employee_name']
+
+    def calculate_salary(self):
+        self.salary = self.days_worked * self.rate_per_day
+        return self.salary
+
+    def save(self, *args, **kwargs):
+        self.calculate_salary()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.employee_id} - {self.employee_name}"

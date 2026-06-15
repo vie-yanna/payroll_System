@@ -4,54 +4,76 @@
 <div class="dashboard-header">
     <div>
         <h1>Payroll Dashboard</h1>
-        <p>Welcome back, {{ user.get_username }}.</p>
-    </div>
-</div>
-
-<div class="grid-summary">
-    <div class="summary-card">
-        <h2>{{ employee_count }}</h2>
-        <p>Active employees</p>
-    </div>
-    <div class="summary-card">
-        <h2>{{ pay_period_count }}</h2>
-        <p>Pay periods</p>
-    </div>
-    <div class="summary-card">
-        <h2>${{ total_gross|floatformat:2 }}</h2>
-        <p>Total gross paid</p>
-    </div>
-    <div class="summary-card">
-        <h2>${{ total_net|floatformat:2 }}</h2>
-        <p>Total net paid</p>
+        <p>Enter employee payroll details and compute salary.</p>
     </div>
 </div>
 
 <div class="panel">
-    <h2>Recent Payroll Runs</h2>
-    {% if payroll_runs %}
+    <h2>{% if selected_record %}Update Payroll Record{% else %}Add Payroll Record{% endif %}</h2>
+    <form method="post" class="payroll-form">
+        {% csrf_token %}
+        <input type="hidden" name="record_id" value="{{ selected_record.id|default:'' }}">
+
+        <div class="form-grid">
+            {% for field in payroll_form %}
+                <div class="form-group">
+                    {{ field.label_tag }}
+                    {{ field }}
+                    {% for error in field.errors %}
+                        <div class="field-error">{{ error }}</div>
+                    {% endfor %}
+                </div>
+            {% endfor %}
+
+            <div class="form-group">
+                <label for="salary">Salary</label>
+                <input id="salary" type="text" value="{% if computed_salary != None %}{{ computed_salary|floatformat:2 }}{% endif %}" readonly>
+            </div>
+        </div>
+
+        {% if payroll_form.non_field_errors %}
+            <div class="alert alert-error">{{ payroll_form.non_field_errors }}</div>
+        {% endif %}
+
+        <div class="actions">
+            <button class="button button-secondary" type="submit" name="action" value="compute">Compute</button>
+            <button class="button" type="submit" name="action" value="save">Add / Save</button>
+            <button class="button button-muted" type="submit" name="action" value="update" {% if not selected_record %}disabled{% endif %}>Update</button>
+        </div>
+    </form>
+</div>
+
+<div class="panel">
+    <h2>Payroll Records</h2>
+    {% if payroll_records %}
         <table class="data-table">
             <thead>
                 <tr>
-                    <th>Period</th>
-                    <th>Run date</th>
-                    <th>Gross</th>
-                    <th>Net</th>
+                    <th>ID</th>
+                    <th>Employee Name</th>
+                    <th>Department</th>
+                    <th>No. of Days</th>
+                    <th>Rate per Day</th>
+                    <th>Salary</th>
+                    <th></th>
                 </tr>
             </thead>
             <tbody>
-                {% for run in payroll_runs %}
+                {% for record in payroll_records %}
                     <tr>
-                        <td>{{ run.period.name }}</td>
-                        <td>{{ run.run_date|date:'M d, Y H:i' }}</td>
-                        <td>${{ run.total_gross|floatformat:2 }}</td>
-                        <td>${{ run.total_net|floatformat:2 }}</td>
+                        <td>{{ record.employee_id }}</td>
+                        <td>{{ record.employee_name }}</td>
+                        <td>{{ record.department }}</td>
+                        <td>{{ record.days_worked|floatformat:2 }}</td>
+                        <td>{{ record.rate_per_day|floatformat:2 }}</td>
+                        <td>{{ record.salary|floatformat:2 }}</td>
+                        <td><a class="text-link" href="{% url 'payroll:dashboard' %}?edit={{ record.id }}">Edit</a></td>
                     </tr>
                 {% endfor %}
             </tbody>
         </table>
     {% else %}
-        <p>No payroll runs have been created yet.</p>
+        <p>No payroll records yet.</p>
     {% endif %}
 </div>
 {% endblock %}
