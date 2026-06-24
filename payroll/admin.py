@@ -28,5 +28,17 @@ class SalaryComponentAdmin(admin.ModelAdmin):
 
 @admin.register(PayrollRecord)
 class PayrollRecordAdmin(admin.ModelAdmin):
-    list_display = ('employee_id', 'employee_name', 'department', 'days_worked', 'rate_per_day', 'salary')
+    list_display = (
+        'employee_id',
+        'employee_name',
+        'department',
+        'cutoff_start',
+        'cutoff_end',
+        'gross_pay',
+        'total_deductions',
+        'net_pay',
+        'is_paid',
+        'paid_at',
+    )
+    list_filter = ('department', 'cutoff_start', 'cutoff_end', 'is_paid')
     search_fields = ('employee_id', 'employee_name', 'department')

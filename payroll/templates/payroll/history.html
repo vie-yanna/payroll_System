@@ -1,10 +1,11 @@
 {% extends 'payroll/base.html' %}
+{% load humanize %}
 
 {% block content %}
 <div class="panel">
     <h1>Payroll History</h1>
     {% if employee %}
-        <p>Payroll records for {{ employee.first_name }} {{ employee.last_name }}</p>
+        <p>Payroll records for: {{ employee.first_name }} {{ employee.last_name }}</p>
     {% endif %}
     {% if payroll_runs %}
         <table class="data-table">
@@ -21,8 +22,8 @@
                     <tr>
                         <td>{{ run.period.name }}</td>
                         <td>{{ run.run_date|date:'M d, Y H:i' }}</td>
-                        <td>${{ run.total_gross|floatformat:2 }}</td>
-                        <td>${{ run.total_net|floatformat:2 }}</td>
+                        <td>PHP {{ run.total_gross|floatformat:2|intcomma }}</td>
+                        <td>PHP {{ run.total_net|floatformat:2|intcomma }}</td>
                     </tr>
                 {% endfor %}
             </tbody>

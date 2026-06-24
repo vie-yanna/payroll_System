@@ -215,6 +215,36 @@ nav a:hover {
   color: var(--muted);
 }
 
+.summary-grid,
+.breakdown-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.summary-card,
+.breakdown-grid > div {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem;
+  box-shadow: var(--shadow);
+}
+
+.summary-card span,
+.breakdown-grid span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin-bottom: 0.4rem;
+}
+
+.summary-card strong,
+.breakdown-grid strong {
+  font-size: 1.2rem;
+}
+
 .data-table {
   width: 100%;
   border-collapse: collapse;
@@ -241,6 +271,76 @@ nav a:hover {
 
 .text-link:hover {
   text-decoration: underline;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.badge-paid {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.badge-unpaid {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.actions-cell {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.inline-form {
+  display: inline;
+  margin: 0;
+}
+
+.button-link {
+  background: none;
+  border: 1px solid currentColor;
+  border-radius: 5px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.3;
+  padding: 0.3rem 0.65rem;
+}
+
+.button-link-success {
+  color: #047857;
+}
+
+.button-link-success:hover {
+  background: #047857;
+  color: #fff;
+}
+
+.button-link-muted {
+  color: #4b5563;
+}
+
+.button-link-muted:hover {
+  background: #4b5563;
+  color: #fff;
+}
+
+.button-link-danger {
+  color: #dc2626;
+}
+
+.button-link-danger:hover {
+  background: #dc2626;
+  color: #fff;
 }
 
 .site-footer {

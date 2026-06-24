@@ -1,0 +1,135 @@
+{% extends 'payroll/base.html' %}
+{% load humanize %}
+
+{% block content %}
+<div class="dashboard-header">
+    <div>
+        <h1>Accounting</h1>
+        <p>Compute salary per cutoff with absences, statutory deductions, and withholding tax.</p>
+    </div>
+    <div class="actions">
+        <a class="button button-secondary" href="{% url 'payroll:export_payroll' %}">Export Excel</a>
+        <a class="button button-muted" href="{% url 'payroll:dashboard' %}">View Dashboard</a>
+    </div>
+</div>
+
+<div class="panel">
+    <h2>{% if selected_record %}Update Cutoff Payroll{% else %}Compute Cutoff Payroll{% endif %}</h2>
+    <form method="post" class="payroll-form">
+        {% csrf_token %}
+        <input type="hidden" name="record_id" value="{{ selected_record.id|default:'' }}">
+
+        <div class="form-grid">
+            {% for field in payroll_form %}
+                <div class="form-group">
+                    {{ field.label_tag }}
+                    {{ field }}
+                    {% for error in field.errors %}
+                        <div class="field-error">{{ error }}</div>
+                    {% endfor %}
+                </div>
+            {% endfor %}
+        </div>
+
+        {% if payroll_form.non_field_errors %}
+            <div class="alert alert-error">{{ payroll_form.non_field_errors }}</div>
+        {% endif %}
+
+        <div class="actions">
+            <button class="button button-secondary" type="submit" name="action" value="compute">Compute</button>
+            <button class="button" type="submit" name="action" value="save">Save Payroll</button>
+            <button class="button button-muted" type="submit" name="action" value="update" {% if not selected_record %}disabled{% endif %}>Update</button>
+        </div>
+    </form>
+</div>
+
+{% if computed_record %}
+<div class="panel">
+    <h2>Computed Breakdown</h2>
+    <div class="breakdown-grid">
+        <div><span>Gross Pay:</span><strong>PHP {{ computed_record.gross_pay|floatformat:2|intcomma }}</strong></div>
+        <div><span>Paid Days:</span><strong>{{ computed_record.days_worked|floatformat:2|intcomma }}</strong></div>
+        <div><span>Absent Deduction:</span><strong>PHP {{ computed_record.absent_deduction|floatformat:2|intcomma }}</strong></div>
+        <div><span>Pay After Absences:</span><strong>PHP {{ computed_record.salary|floatformat:2|intcomma }}</strong></div>
+        <div><span>SSS:</span><strong>PHP {{ computed_record.sss_deduction|floatformat:2|intcomma }}</strong></div>
+        <div><span>PhilHealth:</span><strong>PHP {{ computed_record.philhealth_deduction|floatformat:2|intcomma }}</strong></div>
+        <div><span>Pag-IBIG:</span><strong>PHP {{ computed_record.pagibig_deduction|floatformat:2|intcomma }}</strong></div>
+        <div><span>Withholding Tax:</span><strong>PHP {{ computed_record.withholding_tax|floatformat:2|intcomma }}</strong></div>
+        <div><span>Total Deductions:</span><strong>PHP {{ computed_record.total_deductions|floatformat:2|intcomma }}</strong></div>
+        <div><span>Net Pay:</span><strong>PHP {{ computed_record.net_pay|floatformat:2|intcomma }}</strong></div>
+    </div>
+</div>
+{% endif %}
+
+<div class="panel">
+    <h2>Recent Computations</h2>
+    {% if payroll_records %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Cutoff</th>
+                    <th>ID</th>
+                    <th>Employee</th>
+                    <th>Gross</th>
+                    <th>Deductions</th>
+                    <th>Net Pay</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for record in payroll_records %}
+                    <tr>
+                        <td>
+                            {% if record.cutoff_start and record.cutoff_end %}
+                                {{ record.cutoff_start|date:'M d' }} - {{ record.cutoff_end|date:'M d, Y' }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>{{ record.employee_id }}</td>
+                        <td>{{ record.employee_name }}</td>
+                        <td>PHP {{ record.gross_pay|floatformat:2|intcomma }}</td>
+                        <td>PHP {{ record.total_deductions|floatformat:2|intcomma }}</td>
+                        <td><strong>PHP {{ record.net_pay|floatformat:2|intcomma }}</strong></td>
+                        <td>
+                            {% if record.is_paid %}
+                                <span class="badge badge-paid">Paid</span>
+                            {% else %}
+                                <span class="badge badge-unpaid">Unpaid</span>
+                            {% endif %}
+                        </td>
+                        <td class="actions-cell">
+                            <a class="text-link" href="{% url 'payroll:accounting' %}?edit={{ record.id }}">Edit</a>
+
+                            <form method="post" class="inline-form">
+                                {% csrf_token %}
+                                <input type="hidden" name="record_id" value="{{ record.id }}">
+                                {% if record.is_paid %}
+                                    <button type="submit" name="action" value="mark_unpaid" class="button-link button-link-muted">Mark Unpaid</button>
+                                {% else %}
+                                    <button type="submit" name="action" value="mark_paid" class="button-link button-link-success">Mark Paid</button>
+                                {% endif %}
+                            </form>
+
+                            <form method="post" class="inline-form" onsubmit="return confirmAction('Delete this payroll record?')">
+                                {% csrf_token %}
+                                <input type="hidden" name="record_id" value="{{ record.id }}">
+                                <button type="submit" name="action" value="delete" class="button-link button-link-danger">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No payroll computations yet.</p>
+    {% endif %}
+</div>
+
+<script>
+    function confirmAction(message) {
+        return window.confirm(message);
+    }
+</script>
+{% endblock %}

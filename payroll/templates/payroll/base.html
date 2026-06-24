@@ -16,6 +16,7 @@
                 {% if user.is_authenticated %}
                     {% if user.is_staff %}
                         <a href="{% url 'payroll:dashboard' %}">Dashboard</a>
+                        <a href="{% url 'payroll:accounting' %}">Accounting</a>
                     {% else %}
                         <a href="{% url 'payroll:history' %}">Payroll History</a>
                     {% endif %}
