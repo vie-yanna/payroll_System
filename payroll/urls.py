@@ -1,6 +1,6 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
-
+from . import views
 from .views import (
     EmployeeViewSet,
     PayPeriodViewSet,
@@ -18,4 +18,6 @@ router.register(r'payroll-items', PayrollItemViewSet, basename='payrollitem')
 
 urlpatterns = [
     path('', include(router.urls)),
+    path('employees-list/', views.employee_list, name='employee_list'),
+    path('employees/delete/<int:id>/', views.delete_employee, name='delete_employee'),
 ]

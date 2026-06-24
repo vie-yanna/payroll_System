@@ -10,6 +10,9 @@ from django.views.generic import TemplateView
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from django.shortcuts import render, get_object_or_404, redirect
+from .models import Employee
+from django.http import JsonResponse
 
 from .forms import PayrollRecordForm
 from .models import Employee, PayPeriod, PayrollRun, PayrollItem, PayrollRecord, SalaryComponent
@@ -50,7 +53,7 @@ class IsPayrollItemOwnerOrAdmin(permissions.BasePermission):
 
 
 class EmployeeViewSet(viewsets.ModelViewSet):
-    queryset = Employee.objects.all().order_by('employee_id')
+    queryset = Employee.objects.all().order_by('id')
     serializer_class = EmployeeSerializer
     permission_classes = [permissions.IsAuthenticated, IsPayrollAdmin]
 
@@ -235,3 +238,19 @@ class DashboardView(StaffRequiredMixin, TemplateView):
             'total_net': totals.get('total_net') or 0,
         })
         return context
+
+def employee_list(request):
+    employees = Employee.objects.all().values()
+    return JsonResponse(list(employees), safe=False)
+
+def delete_employee(request, id):
+    employee = get_object_or_404(Employee, id=id)
+
+    if request.method == "POST":
+        employee.is_deleted = True
+        employee.save()
+        return redirect('employee_list')
+
+    return render(request, 'confirm_delete.html', {'employee': employee})
+
+

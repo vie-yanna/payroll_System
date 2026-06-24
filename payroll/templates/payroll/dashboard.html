@@ -55,19 +55,57 @@
                     <th>No. of Days</th>
                     <th>Rate per Day</th>
                     <th>Salary</th>
-                    <th></th>
+                    <th>Status</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% for record in payroll_records %}
-                    <tr>
+                    <tr class="{% if record.is_deleted %}row-deleted{% endif %}">
                         <td>{{ record.employee_id }}</td>
                         <td>{{ record.employee_name }}</td>
                         <td>{{ record.department }}</td>
                         <td>{{ record.days_worked|floatformat:2 }}</td>
                         <td>{{ record.rate_per_day|floatformat:2 }}</td>
                         <td>{{ record.salary|floatformat:2 }}</td>
-                        <td><a class="text-link" href="{% url 'payroll:dashboard' %}?edit={{ record.id }}">Edit</a></td>
+                        <td>
+                            {% if record.is_deleted %}
+                                <span class="badge badge-deleted">Marked Deleted</span>
+                            {% else %}
+                                <span class="badge badge-active">Active</span>
+                            {% endif %}
+                        </td>
+                        <td class="actions-cell">
+                            {% if not record.is_deleted %}
+                                <a class="text-link" href="{% url 'payroll:dashboard' %}?edit={{ record.id }}">Edit</a>
+
+                                <form method="post" class="inline-form" onsubmit="return confirmAction('Mark this record as deleted? It will remain in the database but be flagged as removed.')">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="record_id" value="{{ record.id }}">
+                                    <button type="submit" name="action" value="mark_delete" class="button-link button-link-warn">
+                                        Mark Delete
+                                    </button>
+                                </form>
+                            {% else %}
+                                <form method="post" class="inline-form">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="record_id" value="{{ record.id }}">
+                                    <button type="submit" name="action" value="restore" class="button-link button-link-muted">
+                                        Restore
+                                    </button>
+                                </form>
+                            {% endif %}
+
+                            {% if request.user.is_staff %}
+                                <form method="post" class="inline-form" onsubmit="return confirmAction('Permanently delete this record? This cannot be undone.')">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="record_id" value="{{ record.id }}">
+                                    <button type="submit" name="action" value="permanent_delete" class="button-link button-link-danger">
+                                        Delete Permanently
+                                    </button>
+                                </form>
+                            {% endif %}
+                        </td>
                     </tr>
                 {% endfor %}
             </tbody>
@@ -76,4 +114,80 @@
         <p>No payroll records yet.</p>
     {% endif %}
 </div>
+
+<script>
+    function confirmAction(message) {
+        return window.confirm(message);
+    }
+</script>
+
+<style>
+    tr.row-deleted td {
+        opacity: 0.5;
+        text-decoration: line-through;
+    }
+
+    .badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.03em;
+        white-space: nowrap;
+    }
+    .badge-active  { background: #d1fae5; color: #065f46; }
+    .badge-deleted { background: #fee2e2; color: #991b1b; }
+
+    .actions-cell {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .inline-form {
+        display: inline;
+        margin: 0;
+        padding: 0;
+    }
+
+    /* Boxed action buttons — no underline */
+    .button-link {
+        background: none;
+        border: 1.5px solid currentColor;
+        border-radius: 5px;
+        padding: 3px 10px;
+        cursor: pointer;
+        font-size: 0.8rem;
+        font-weight: 600;
+        font-family: inherit;
+        text-decoration: none;
+        line-height: 1.4;
+        transition: background 0.15s, color 0.15s;
+    }
+    .button-link-warn   { color: #b45309; }
+    .button-link-warn:hover   { background: #b45309; color: #fff; }
+    .button-link-muted  { color: #6b7280; }
+    .button-link-muted:hover  { background: #6b7280; color: #fff; }
+    .button-link-danger { color: #dc2626; }
+    .button-link-danger:hover { background: #dc2626; color: #fff; }
+
+    /* Edit link styled to match */
+    .actions-cell .text-link {
+        display: inline-block;
+        border: 1.5px solid currentColor;
+        border-radius: 5px;
+        padding: 3px 10px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-decoration: none;
+        line-height: 1.4;
+        transition: background 0.15s, color 0.15s;
+    }
+    .actions-cell .text-link:hover {
+        background: currentColor;
+        filter: brightness(0) invert(0.8);
+    }
+</style>
 {% endblock %}
