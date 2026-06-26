@@ -1,5 +1,7 @@
 from decimal import Decimal
 
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import User
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib.auth.views import LoginView, LogoutView
@@ -14,8 +16,8 @@ from rest_framework.response import Response
 from django.shortcuts import get_object_or_404, redirect
 
 from .excel_export import build_xlsx
-from .forms import PayrollRecordForm
-from .models import Employee, PayPeriod, PayrollRun, PayrollItem, PayrollRecord, SalaryComponent
+from .forms import PayrollRecordForm, DeductionOverrideForm, DeductionConfigForm
+from .models import Employee, PayPeriod, PayrollRun, PayrollItem, PayrollRecord, SalaryComponent, DeductionConfig
 from .serializers import (
     EmployeeSerializer,
     PayPeriodSerializer,
@@ -164,12 +166,19 @@ class PayrollHistoryView(LoginRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         user = self.request.user
         if user.is_staff:
-            payroll_runs = PayrollRun.objects.order_by('-run_date')
+            records = PayrollRecord.objects.filter(is_deleted=False).order_by('-cutoff_end')
         else:
             employee = getattr(user, 'employee', None)
-            payroll_runs = PayrollRun.objects.filter(payroll_items__employee=employee).distinct().order_by('-run_date') if employee else PayrollRun.objects.none()
+            if employee:
+                records = PayrollRecord.objects.filter(
+                    is_deleted=False,
+                    employee_id=employee.employee_id,
+                ).order_by('-cutoff_end')
+            else:
+                records = PayrollRecord.objects.none()
+
         context.update({
-            'payroll_runs': payroll_runs,
+            'records': records,
             'employee': getattr(user, 'employee', None),
         })
         return context
@@ -237,10 +246,10 @@ class AccountingView(StaffRequiredMixin, TemplateView):
             return self.render_to_response(self.get_context_data(form=form, selected_record=instance))
 
         record = form.save(commit=False)
-        record.calculate_salary()
 
         if action == 'compute':
-            messages.info(request, 'Salary computed. Click Save to add it or Update to change the selected record.')
+            record.calculate_salary()   # always auto, no override branch needed
+            messages.info(request, 'Salary computed. Click Save to add or Update to change.')
             return self.render_to_response(
                 self.get_context_data(form=form, selected_record=instance, computed_record=record)
             )
@@ -317,7 +326,7 @@ class PayrollExportView(StaffRequiredMixin, TemplateView):
                 record.total_deductions,
                 record.net_pay,
                 'Paid' if record.is_paid else 'Unpaid',
-                timezone.localtime(record.paid_at) if record.paid_at else '',
+                timezone.localtime(record.paid_at).replace(tzinfo=None) if record.paid_at else '',
             ])
 
         response = HttpResponse(
@@ -340,3 +349,105 @@ def delete_employee(request, id):
         return redirect('payroll:dashboard')
 
     return redirect('payroll:dashboard')
+
+class DeductionOverrideView(StaffRequiredMixin, TemplateView):
+    template_name = 'payroll/deduction.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['records'] = PayrollRecord.objects.filter(is_deleted=False).order_by('-cutoff_end')
+        return context
+
+
+class DeductionEditView(StaffRequiredMixin, TemplateView):
+    template_name = 'payroll/deduction_edit.html'
+
+    def get_record(self, pk):
+        return get_object_or_404(PayrollRecord, pk=pk, is_deleted=False)
+
+    def get(self, request, pk, *args, **kwargs):
+        record = self.get_record(pk)
+        form = DeductionOverrideForm(instance=record)
+        return self.render_to_response(self.get_context_data(form=form, record=record))
+
+    def post(self, request, pk, *args, **kwargs):
+        record = self.get_record(pk)
+        form = DeductionOverrideForm(request.POST, instance=record)
+        if form.is_valid():
+            updated = form.save(commit=False)
+            updated.override_calculations = True   # always lock it when editing manually
+            updated.recalculate_totals()
+            updated.save()
+            messages.success(request, f'Deductions updated for {record.employee_name}.')
+            return redirect('payroll:deductions')
+        return self.render_to_response(self.get_context_data(form=form, record=record))
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        return context
+    
+class DeductionConfigView(StaffRequiredMixin, TemplateView):
+    template_name = 'payroll/deduction_config.html'
+
+    def get(self, request, *args, **kwargs):
+        config = DeductionConfig.get()
+        form = DeductionConfigForm(instance=config)
+        return self.render_to_response(self.get_context_data(form=form, config=config))
+
+    def post(self, request, *args, **kwargs):
+        config = DeductionConfig.get()
+        form = DeductionConfigForm(request.POST, instance=config)
+        if form.is_valid():
+            cfg = form.save(commit=False)
+            cfg.updated_by = request.user
+            cfg.save()
+            messages.success(request, 'Deduction rates updated. All future computations will use the new rates.')
+            return redirect('payroll:deduction_config')
+        return self.render_to_response(self.get_context_data(form=form, config=config))
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['form']   = kwargs.get('form')
+        context['config'] = kwargs.get('config')
+        return context
+    
+class EmployeeUserLinkView(StaffRequiredMixin, TemplateView):
+    """
+    Lets admin create a login account for an employee, or link an existing one.
+    """
+    template_name = 'payroll/employee_link.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['employees'] = Employee.objects.filter(active=True).order_by('last_name')
+        return context
+
+    def post(self, request, *args, **kwargs):
+        employee_pk = request.POST.get('employee_pk')
+        action = request.POST.get('action')
+        employee = get_object_or_404(Employee, pk=employee_pk)
+
+        if action == 'create':
+            username = request.POST.get('username', '').strip()
+            password = request.POST.get('password', '').strip()
+
+            if not username or not password:
+                messages.error(request, 'Username and password are required.')
+                return redirect('payroll:employee_link')
+
+            User = get_user_model()
+            if User.objects.filter(username=username).exists():
+                messages.error(request, f'Username "{username}" is already taken.')
+                return redirect('payroll:employee_link')
+
+            user = User.objects.create_user(username=username, password=password)
+            employee.user = user
+            employee.save()
+            messages.success(request, f'Account created and linked to {employee.first_name} {employee.last_name}.')
+
+        elif action == 'unlink':
+            employee.user = None
+            employee.save()
+            messages.success(request, f'Account unlinked from {employee.first_name} {employee.last_name}.')
+
+        return redirect('payroll:employee_link')

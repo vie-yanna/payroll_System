@@ -6,6 +6,11 @@ class EmployeeAdmin(admin.ModelAdmin):
     list_display = ('first_name', 'last_name', 'employee_id', 'email', 'hire_date', 'active', 'user')
     search_fields = ('first_name', 'last_name', 'employee_id', 'email', 'user__username')
     raw_id_fields = ('user',)
+    autocomplete_fields = []
+
+    def linked_username(self, obj):
+        return obj.user.username if obj.user else '- not linked -'
+    linked_username.short_description = 'Login Username'
 
 @admin.register(PayPeriod)
 class PayPeriodAdmin(admin.ModelAdmin):

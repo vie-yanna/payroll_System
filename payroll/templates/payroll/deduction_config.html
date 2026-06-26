@@ -1,0 +1,89 @@
+{% extends 'payroll/base.html' %}
+{% load humanize %}
+
+{% block content %}
+<div class="dashboard-header">
+    <div>
+        <h1>Deduction Rate Configuration</h1>
+        <p>These rates are used for all automatic payroll computations.</p>
+    </div>
+    <div class="actions">
+        <a class="button button-muted" href="{% url 'payroll:deductions' %}">← Back</a>
+    </div>
+</div>
+
+{% if config.updated_at %}
+<div class="panel" style="padding:.75rem 1rem;background:var(--bg-alt,#f8f9fa);">
+    Last updated: <strong>{{ config.updated_at|date:'M d, Y H:i' }}</strong>
+    {% if config.updated_by %}by <strong>{{ config.updated_by.username }}</strong>{% endif %}
+</div>
+{% endif %}
+
+<div class="panel">
+    <form method="post" class="payroll-form">
+        {% csrf_token %}
+
+        <h3>SSS</h3>
+        <div class="form-grid">
+            <div class="form-group">
+                {{ form.sss_employee_rate.label_tag }}
+                {{ form.sss_employee_rate }}
+                <small>e.g. 0.0500 = 5%</small>
+            </div>
+            <div class="form-group">
+                {{ form.sss_monthly_min.label_tag }}
+                {{ form.sss_monthly_min }}
+            </div>
+            <div class="form-group">
+                {{ form.sss_monthly_max.label_tag }}
+                {{ form.sss_monthly_max }}
+            </div>
+        </div>
+
+        <h3 style="margin-top:1.5rem;">PhilHealth</h3>
+        <div class="form-grid">
+            <div class="form-group">
+                {{ form.philhealth_employee_rate.label_tag }}
+                {{ form.philhealth_employee_rate }}
+                <small>e.g. 0.0250 = 2.5%</small>
+            </div>
+            <div class="form-group">
+                {{ form.philhealth_monthly_min.label_tag }}
+                {{ form.philhealth_monthly_min }}
+            </div>
+            <div class="form-group">
+                {{ form.philhealth_monthly_max.label_tag }}
+                {{ form.philhealth_monthly_max }}
+            </div>
+        </div>
+
+        <h3 style="margin-top:1.5rem;">Pag-IBIG</h3>
+        <div class="form-grid">
+            <div class="form-group">
+                {{ form.pagibig_low_rate.label_tag }}
+                {{ form.pagibig_low_rate }}
+                <small>e.g. 0.0100 = 1%</small>
+            </div>
+            <div class="form-group">
+                {{ form.pagibig_standard_rate.label_tag }}
+                {{ form.pagibig_standard_rate }}
+                <small>e.g. 0.0200 = 2%</small>
+            </div>
+            <div class="form-group">
+                {{ form.pagibig_low_rate_limit.label_tag }}
+                {{ form.pagibig_low_rate_limit }}
+                <small>Monthly salary threshold between low and standard rate</small>
+            </div>
+            <div class="form-group">
+                {{ form.pagibig_monthly_max.label_tag }}
+                {{ form.pagibig_monthly_max }}
+                <small>Monthly salary cap for Pag-IBIG contribution</small>
+            </div>
+        </div>
+
+        <div class="actions" style="margin-top:1.5rem;">
+            <button class="button" type="submit">Save Rates</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -5,31 +5,54 @@
 <div class="panel">
     <h1>Payroll History</h1>
     {% if employee %}
-        <p>Payroll records for: {{ employee.first_name }} {{ employee.last_name }}</p>
+        <p>Records for: <strong>{{ employee.first_name }} {{ employee.last_name }}</strong></p>
     {% endif %}
-    {% if payroll_runs %}
+
+    {% if records %}
         <table class="data-table">
             <thead>
                 <tr>
-                    <th>Period</th>
-                    <th>Run date</th>
-                    <th>Gross</th>
-                    <th>Net</th>
+                    <th>Cutoff</th>
+                    <th>Gross Pay</th>
+                    <th>SSS</th>
+                    <th>PhilHealth</th>
+                    <th>Pag-IBIG</th>
+                    <th>W. Tax</th>
+                    <th>Total Deductions</th>
+                    <th>Net Pay</th>
+                    <th>Status</th>
                 </tr>
             </thead>
             <tbody>
-                {% for run in payroll_runs %}
+                {% for record in records %}
                     <tr>
-                        <td>{{ run.period.name }}</td>
-                        <td>{{ run.run_date|date:'M d, Y H:i' }}</td>
-                        <td>PHP {{ run.total_gross|floatformat:2|intcomma }}</td>
-                        <td>PHP {{ run.total_net|floatformat:2|intcomma }}</td>
+                        <td>
+                            {% if record.cutoff_start and record.cutoff_end %}
+                                {{ record.cutoff_start|date:'M d' }} – {{ record.cutoff_end|date:'M d, Y' }}
+                            {% else %}
+                                –
+                            {% endif %}
+                        </td>
+                        <td>PHP {{ record.gross_pay|floatformat:2|intcomma }}</td>
+                        <td>PHP {{ record.sss_deduction|floatformat:2|intcomma }}</td>
+                        <td>PHP {{ record.philhealth_deduction|floatformat:2|intcomma }}</td>
+                        <td>PHP {{ record.pagibig_deduction|floatformat:2|intcomma }}</td>
+                        <td>PHP {{ record.withholding_tax|floatformat:2|intcomma }}</td>
+                        <td>PHP {{ record.total_deductions|floatformat:2|intcomma }}</td>
+                        <td><strong>PHP {{ record.net_pay|floatformat:2|intcomma }}</strong></td>
+                        <td>
+                            {% if record.is_paid %}
+                                <span class="badge badge-paid">Paid</span>
+                            {% else %}
+                                <span class="badge badge-unpaid">Unpaid</span>
+                            {% endif %}
+                        </td>
                     </tr>
                 {% endfor %}
             </tbody>
         </table>
     {% else %}
-        <p>No payroll history available.</p>
+        <p>No payroll records found.</p>
     {% endif %}
 </div>
 {% endblock %}

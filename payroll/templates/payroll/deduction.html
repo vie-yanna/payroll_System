@@ -1,0 +1,72 @@
+{% extends 'payroll/base.html' %}
+{% load humanize %}
+
+{% block content %}
+<div class="dashboard-header">
+    <div>
+        <h1>Deduction Management</h1>
+        <p>View and manually override statutory deductions per payroll record.</p>
+    </div>
+    <div class="actions">
+        <a class="button button-secondary" href="{% url 'payroll:export_payroll' %}">Export Excel</a>
+        <a class="button button-muted" href="{% url 'payroll:accounting' %}">Accounting</a>
+    </div>
+</div>
+
+<div class="panel">
+    {% if records %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Cutoff</th>
+                    <th>ID</th>
+                    <th>Employee</th>
+                    <th>Department</th>
+                    <th>SSS</th>
+                    <th>PhilHealth</th>
+                    <th>Pag-IBIG</th>
+                    <th>W. Tax</th>
+                    <th>Total Deductions</th>
+                    <th>Net Pay</th>
+                    <th>Mode</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for record in records %}
+                    <tr>
+                        <td>
+                            {% if record.cutoff_start and record.cutoff_end %}
+                                {{ record.cutoff_start|date:'M d' }} – {{ record.cutoff_end|date:'M d, Y' }}
+                            {% else %}
+                                –
+                            {% endif %}
+                        </td>
+                        <td>{{ record.employee_id }}</td>
+                        <td>{{ record.employee_name }}</td>
+                        <td>{{ record.department }}</td>
+                        <td>{{ record.sss_deduction|floatformat:2|intcomma }}</td>
+                        <td>{{ record.philhealth_deduction|floatformat:2|intcomma }}</td>
+                        <td>{{ record.pagibig_deduction|floatformat:2|intcomma }}</td>
+                        <td>{{ record.withholding_tax|floatformat:2|intcomma }}</td>
+                        <td><strong>PHP {{ record.total_deductions|floatformat:2|intcomma }}</strong></td>
+                        <td><strong>PHP {{ record.net_pay|floatformat:2|intcomma }}</strong></td>
+                        <td>
+                            {% if record.override_calculations %}
+                                <span class="badge badge-unpaid">Manual</span>
+                            {% else %}
+                                <span class="badge badge-paid">Auto</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a class="text-link" href="{% url 'payroll:edit_deduction' record.pk %}">Edit</a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No payroll records found.</p>
+    {% endif %}
+</div>
+{% endblock %}

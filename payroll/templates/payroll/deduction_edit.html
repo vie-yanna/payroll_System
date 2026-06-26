@@ -1,0 +1,132 @@
+{% extends 'payroll/base.html' %}
+{% load humanize %}
+
+{% block content %}
+<div class="dashboard-header">
+    <div>
+        <h1>Edit Deductions</h1>
+        <p>Manually override statutory deductions for this payroll record.</p>
+    </div>
+    <div class="actions">
+        <a class="button button-muted" href="{% url 'payroll:deductions' %}">← Back to Deductions</a>
+    </div>
+</div>
+
+<!-- Record summary -->
+<div class="panel">
+    <h2>{{ record.employee_name }} <small style="font-weight:normal;color:var(--text-muted);">({{ record.employee_id }})</small></h2>
+    <div class="breakdown-grid">
+        <div><span>Department:</span><strong>{{ record.department }}</strong></div>
+        <div>
+            <span>Cutoff:</span>
+            <strong>
+                {% if record.cutoff_start and record.cutoff_end %}
+                    {{ record.cutoff_start|date:'M d' }} – {{ record.cutoff_end|date:'M d, Y' }}
+                {% else %}
+                    –
+                {% endif %}
+            </strong>
+        </div>
+        <div><span>Gross Pay:</span><strong>PHP {{ record.gross_pay|floatformat:2|intcomma }}</strong></div>
+        <div><span>Absent Deduction:</span><strong>PHP {{ record.absent_deduction|floatformat:2|intcomma }}</strong></div>
+        <div><span>Pay After Absences:</span><strong>PHP {{ record.salary|floatformat:2|intcomma }}</strong></div>
+        <div><span>Current Net Pay:</span><strong>PHP {{ record.net_pay|floatformat:2|intcomma }}</strong></div>
+    </div>
+</div>
+
+<!-- Deduction edit form -->
+<div class="panel">
+    <h2>Override Deductions</h2>
+    <p style="color:var(--text-muted);margin-bottom:1rem;">
+        Saving here will mark this record as <strong>Manual</strong> and lock out automatic recomputation.
+        Gross pay and absent deductions are always kept consistent.
+    </p>
+
+    <form method="post" class="payroll-form">
+        {% csrf_token %}
+
+        <div class="form-grid">
+            {% for field in form %}
+                <div class="form-group">
+                    {{ field.label_tag }}
+                    {{ field }}
+                    {% for error in field.errors %}
+                        <div class="field-error">{{ error }}</div>
+                    {% endfor %}
+                </div>
+            {% endfor %}
+        </div>
+
+        {% if form.non_field_errors %}
+            <div class="alert alert-error">{{ form.non_field_errors }}</div>
+        {% endif %}
+
+        <!-- Live net-pay preview -->
+        <div class="panel" id="deduction-preview" style="margin-top:1rem;background:var(--bg-alt,#f8f9fa);">
+            <h3 style="margin-bottom:.5rem;">Preview</h3>
+            <div class="breakdown-grid">
+                <div><span>Gross Pay:</span><strong>PHP {{ record.gross_pay|floatformat:2|intcomma }}</strong></div>
+                <div><span>Absent Deduction:</span><strong>PHP {{ record.absent_deduction|floatformat:2|intcomma }}</strong></div>
+                <div><span>SSS:</span><strong id="prev-sss">PHP {{ record.sss_deduction|floatformat:2|intcomma }}</strong></div>
+                <div><span>PhilHealth:</span><strong id="prev-ph">PHP {{ record.philhealth_deduction|floatformat:2|intcomma }}</strong></div>
+                <div><span>Pag-IBIG:</span><strong id="prev-pi">PHP {{ record.pagibig_deduction|floatformat:2|intcomma }}</strong></div>
+                <div><span>Withholding Tax:</span><strong id="prev-wt">PHP {{ record.withholding_tax|floatformat:2|intcomma }}</strong></div>
+                <div><span>Total Deductions:</span><strong id="prev-total">PHP {{ record.total_deductions|floatformat:2|intcomma }}</strong></div>
+                <div><span>Net Pay:</span><strong id="prev-net" style="color:var(--color-success,green);">PHP {{ record.net_pay|floatformat:2|intcomma }}</strong></div>
+            </div>
+        </div>
+
+        <div class="actions" style="margin-top:1.5rem;">
+            <button class="button" type="submit">Save Deductions</button>
+            <a class="button button-muted" href="{% url 'payroll:deductions' %}">Cancel</a>
+        </div>
+    </form>
+</div>
+
+<script>
+(function () {
+    const gross    = {{ record.gross_pay }};
+    const absentD  = {{ record.absent_deduction }};
+
+    const fields = {
+        sss:  document.getElementById('id_sss_deduction'),
+        ph:   document.getElementById('id_philhealth_deduction'),
+        pi:   document.getElementById('id_pagibig_deduction'),
+        wt:   document.getElementById('id_withholding_tax'),
+    };
+
+    const prev = {
+        sss:   document.getElementById('prev-sss'),
+        ph:    document.getElementById('prev-ph'),
+        pi:    document.getElementById('prev-pi'),
+        wt:    document.getElementById('prev-wt'),
+        total: document.getElementById('prev-total'),
+        net:   document.getElementById('prev-net'),
+    };
+
+    function fmt(n) {
+        return 'PHP ' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }
+
+    function update() {
+        const sss = parseFloat(fields.sss.value) || 0;
+        const ph  = parseFloat(fields.ph.value)  || 0;
+        const pi  = parseFloat(fields.pi.value)  || 0;
+        const wt  = parseFloat(fields.wt.value)  || 0;
+
+        const total = absentD + sss + ph + pi + wt;
+        const net   = gross - total;
+
+        prev.sss.textContent   = fmt(sss);
+        prev.ph.textContent    = fmt(ph);
+        prev.pi.textContent    = fmt(pi);
+        prev.wt.textContent    = fmt(wt);
+        prev.total.textContent = fmt(total);
+        prev.net.textContent   = fmt(net);
+        prev.net.style.color   = net < 0 ? 'var(--color-danger,red)' : 'var(--color-success,green)';
+    }
+
+    Object.values(fields).forEach(el => el.addEventListener('input', update));
+})();
+</script>
+{% endblock %}

@@ -6,32 +6,607 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Payroll System</title>
-    <link rel="stylesheet" href="{% static 'payroll/styles.css' %}">
-</head>
-<body>
-    <header class="site-header">
-        <div class="container header-inner">
-            <a class="brand" href="{% url 'payroll:dashboard' %}">Payroll System</a>
-            <nav>
-                {% if user.is_authenticated %}
-                    {% if user.is_staff %}
-                        <a href="{% url 'payroll:dashboard' %}">Dashboard</a>
-                        <a href="{% url 'payroll:accounting' %}">Accounting</a>
-                    {% else %}
-                        <a href="{% url 'payroll:history' %}">Payroll History</a>
-                    {% endif %}
-                    <form class="logout-form" method="post" action="{% url 'payroll:logout' %}">
-                        {% csrf_token %}
-                        <button type="submit">Logout</button>
-                    </form>
-                {% else %}
-                    <a href="{% url 'payroll:login' %}">Login</a>
-                {% endif %}
-            </nav>
-        </div>
-    </header>
+    <style>
+        /* ── Reset ────────────────────────────────────────────────────── */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    <main class="container content">
+        :root {
+            --navy:        #1a2744;
+            --navy-light:  #243358;
+            --navy-hover:  #2e3f6b;
+            --accent:      #3b82f6;
+            --accent-dark: #2563eb;
+            --success:     #16a34a;
+            --danger:      #dc2626;
+            --warning:     #d97706;
+
+            --bg:          #f0f4f8;
+            --bg-alt:      #e8eef5;
+            --surface:     #ffffff;
+            --border:      #d1dae6;
+
+            --text:        #1e293b;
+            --text-muted:  #64748b;
+            --text-light:  #94a3b8;
+
+            --sidebar-w:   240px;
+            --radius:      8px;
+            --shadow:      0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.05);
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            font-size: 14px;
+            color: var(--text);
+            background: var(--bg);
+            min-height: 100vh;
+            display: flex;
+        }
+
+        /* ── Sidebar ──────────────────────────────────────────────────── */
+        .sidebar {
+            width: var(--sidebar-w);
+            min-height: 100vh;
+            background: var(--navy);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            top: 0; left: 0;
+            z-index: 100;
+            transition: transform .25s ease;
+        }
+
+        .sidebar-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 20px 18px 16px;
+            border-bottom: 1px solid rgba(255,255,255,.08);
+            text-decoration: none;
+        }
+
+        .sidebar-brand-icon {
+            width: 34px; height: 34px;
+            background: var(--accent);
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .sidebar-brand-icon svg { width: 18px; height: 18px; fill: #fff; }
+
+        .sidebar-brand-name {
+            font-size: 13px; font-weight: 700;
+            color: #fff; line-height: 1.2;
+        }
+
+        .sidebar-brand-sub {
+            font-size: 10px; color: rgba(255,255,255,.4);
+            letter-spacing: .5px; text-transform: uppercase;
+        }
+
+        .sidebar-nav { flex: 1; padding: 10px 0; overflow-y: auto; }
+
+        .sidebar-section-label {
+            font-size: 10px; font-weight: 700;
+            letter-spacing: .8px; text-transform: uppercase;
+            color: rgba(255,255,255,.28);
+            padding: 14px 18px 4px;
+            display: block;
+        }
+
+        .sidebar-nav a {
+            display: flex; align-items: center; gap: 10px;
+            padding: 9px 18px;
+            color: rgba(255,255,255,.65);
+            text-decoration: none;
+            font-size: 13px; font-weight: 500;
+            transition: background .15s, color .15s;
+            position: relative;
+        }
+
+        .sidebar-nav a:hover { background: var(--navy-hover); color: #fff; }
+
+        .sidebar-nav a.active {
+            background: var(--navy-hover);
+            color: #fff;
+        }
+
+        .sidebar-nav a.active::before {
+            content: '';
+            position: absolute; left: 0; top: 0; bottom: 0;
+            width: 3px; background: var(--accent);
+            border-radius: 0 2px 2px 0;
+        }
+
+        .sidebar-nav a svg {
+            width: 16px; height: 16px; flex-shrink: 0; opacity: .65;
+        }
+
+        .sidebar-nav a:hover svg, .sidebar-nav a.active svg { opacity: 1; }
+
+        /* ── Sidebar Footer ───────────────────────────────────────────── */
+        .sidebar-footer {
+            padding: 12px;
+            border-top: 1px solid rgba(255,255,255,.08);
+        }
+
+        .sidebar-user {
+            display: flex; align-items: center; gap: 10px;
+            padding: 8px; margin-bottom: 8px;
+        }
+
+        .sidebar-avatar {
+            width: 32px; height: 32px; border-radius: 50%;
+            background: var(--accent);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 13px; font-weight: 700; color: #fff; flex-shrink: 0;
+        }
+
+        .sidebar-username {
+            font-size: 13px; font-weight: 600; color: #fff;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+
+        .sidebar-role { font-size: 11px; color: rgba(255,255,255,.38); }
+
+        .logout-form { margin: 0; }
+
+        .logout-btn {
+            width: 100%;
+            display: flex; align-items: center; gap: 10px;
+            padding: 8px 10px;
+            background: rgba(255,255,255,.06);
+            border: 1px solid rgba(255,255,255,.1);
+            border-radius: var(--radius);
+            color: rgba(255,255,255,.65);
+            font-size: 13px; font-weight: 500;
+            cursor: pointer;
+            transition: background .15s, color .15s;
+        }
+
+        .logout-btn:hover {
+            background: rgba(220,38,38,.2);
+            border-color: rgba(220,38,38,.3);
+            color: #fca5a5;
+        }
+
+        .logout-btn svg { width: 15px; height: 15px; opacity: .7; }
+
+        /* Mobile toggle */
+        .sidebar-toggle {
+            display: none;
+            position: fixed; top: 12px; left: 12px;
+            z-index: 200;
+            background: var(--navy); border: none;
+            border-radius: 6px; padding: 8px; cursor: pointer;
+        }
+
+        .sidebar-toggle svg { width: 20px; height: 20px; fill: #fff; display: block; }
+
+        .sidebar-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,.4); z-index: 99;
+        }
+
+        /* ── Main ─────────────────────────────────────────────────────── */
+        .main-wrapper {
+            margin-left: var(--sidebar-w);
+            flex: 1; min-height: 100vh;
+            display: flex; flex-direction: column;
+        }
+
+        .main-content {
+            flex: 1;
+            padding: 28px 32px;
+            width: 100%;
+        }
+
+        /* ── Messages ─────────────────────────────────────────────────── */
+        .messages { margin-bottom: 20px; display: flex; flex-direction: column; gap: 8px; }
+
+        .alert {
+            padding: 10px 14px; border-radius: var(--radius);
+            font-size: 13px; font-weight: 500;
+            border-left: 4px solid;
+        }
+
+        .alert-success { background:#f0fdf4; color:#166534; border-color:var(--success); }
+        .alert-error, .alert-danger { background:#fef2f2; color:#991b1b; border-color:var(--danger); }
+        .alert-info { background:#eff6ff; color:#1e40af; border-color:var(--accent); }
+        .alert-warning { background:#fffbeb; color:#92400e; border-color:var(--warning); }
+
+        /* ── Page Header ──────────────────────────────────────────────── */
+        .dashboard-header, .page-header {
+            display: flex; align-items: flex-start;
+            justify-content: space-between;
+            flex-wrap: wrap; gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .dashboard-header h1, .page-header h1 {
+            font-size: 22px; font-weight: 700; color: var(--text);
+        }
+
+        .dashboard-header p, .page-header p {
+            font-size: 13px; color: var(--text-muted); margin-top: 3px;
+        }
+
+        .dashboard-header .actions, .page-header .actions {
+            display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+        }
+
+        /* ── Panel ────────────────────────────────────────────────────── */
+        .panel {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px 24px;
+            box-shadow: var(--shadow);
+            margin-bottom: 20px;
+        }
+
+        .panel h2 {
+            font-size: 15px; font-weight: 700; color: var(--text);
+            margin-bottom: 16px; padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .panel h3 {
+            font-size: 13px; font-weight: 700; color: var(--text);
+            margin-bottom: 12px;
+            text-transform: uppercase; letter-spacing: .5px;
+        }
+
+        /* ── Summary Cards ────────────────────────────────────────────── */
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px; margin-bottom: 20px;
+        }
+
+        .summary-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px 20px;
+            box-shadow: var(--shadow);
+            display: flex; flex-direction: column; gap: 4px;
+        }
+
+        .summary-card span {
+            font-size: 11px; color: var(--text-muted);
+            font-weight: 600; text-transform: uppercase; letter-spacing: .5px;
+        }
+
+        .summary-card strong { font-size: 20px; font-weight: 700; color: var(--text); }
+
+        /* ── Buttons ──────────────────────────────────────────────────── */
+        .button, a.button {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 8px 16px;
+            background: var(--accent); color: #fff;
+            border: none; border-radius: 6px;
+            font-size: 13px; font-weight: 600;
+            cursor: pointer; text-decoration: none;
+            transition: background .15s, transform .1s;
+            white-space: nowrap;
+        }
+
+        .button:hover { background: var(--accent-dark); }
+        .button:active { transform: scale(.98); }
+
+        .button-secondary {
+            background: #fff; color: var(--accent);
+            border: 1.5px solid var(--accent);
+        }
+        .button-secondary:hover { background: #eff6ff; }
+
+        .button-muted {
+            background: #fff; color: var(--text-muted);
+            border: 1.5px solid var(--border);
+        }
+        .button-muted:hover { background: var(--bg); color: var(--text); }
+
+        .button-danger { background: var(--danger); color: #fff; }
+        .button-danger:hover { background: #b91c1c; }
+
+        .button-sm { padding: 5px 12px; font-size: 12px; }
+
+        .button-link {
+            background: none; border: none;
+            font-size: 13px; font-weight: 500;
+            cursor: pointer; padding: 0; text-decoration: none;
+        }
+
+        .button-link-success { color: var(--success); }
+        .button-link-success:hover { text-decoration: underline; }
+        .button-link-danger { color: var(--danger); }
+        .button-link-danger:hover { text-decoration: underline; }
+        .button-link-muted { color: var(--text-muted); }
+        .button-link-muted:hover { text-decoration: underline; }
+
+        .text-link {
+            color: var(--accent); text-decoration: none;
+            font-size: 13px; font-weight: 500;
+        }
+        .text-link:hover { text-decoration: underline; }
+
+        /* ── Tables ───────────────────────────────────────────────────── */
+        .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+
+        .data-table th {
+            text-align: left; font-size: 11px; font-weight: 700;
+            text-transform: uppercase; letter-spacing: .5px;
+            color: var(--text-muted); padding: 10px 12px;
+            border-bottom: 2px solid var(--border);
+            background: var(--bg); white-space: nowrap;
+        }
+
+        .data-table td {
+            padding: 11px 12px; border-bottom: 1px solid var(--border);
+            color: var(--text); vertical-align: middle;
+        }
+
+        .data-table tbody tr:last-child td { border-bottom: none; }
+        .data-table tbody tr:hover { background: var(--bg); }
+
+        .actions-cell { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+
+        /* ── Badges ───────────────────────────────────────────────────── */
+        .badge {
+            display: inline-block; padding: 3px 9px;
+            border-radius: 20px; font-size: 11px; font-weight: 600;
+        }
+
+        .badge-paid   { background: #dcfce7; color: #166534; }
+        .badge-unpaid { background: #fee2e2; color: #991b1b; }
+
+        /* ── Forms ────────────────────────────────────────────────────── */
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+
+        .form-group { display: flex; flex-direction: column; gap: 5px; }
+
+        .form-group label {
+            font-size: 12px; font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: .4px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea,
+        .form-input {
+            padding: 8px 11px;
+            border: 1.5px solid var(--border);
+            border-radius: 6px; font-size: 13px;
+            color: var(--text); background: #fff;
+            transition: border-color .15s, box-shadow .15s;
+            width: 100%;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus,
+        .form-input:focus {
+            outline: none; border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(59,130,246,.12);
+        }
+
+        .form-group input[type="checkbox"] { width: auto; accent-color: var(--accent); }
+
+        .field-error { font-size: 12px; color: var(--danger); margin-top: 2px; }
+
+        .payroll-form .actions { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+
+        /* ── Breakdown Grid ───────────────────────────────────────────── */
+        .breakdown-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+        }
+
+        .breakdown-grid > div {
+            background: var(--bg); border: 1px solid var(--border);
+            border-radius: 6px; padding: 12px 14px;
+            display: flex; flex-direction: column; gap: 4px;
+        }
+
+        .breakdown-grid > div span {
+            font-size: 11px; color: var(--text-muted);
+            font-weight: 600; text-transform: uppercase; letter-spacing: .4px;
+        }
+
+        .breakdown-grid > div strong { font-size: 15px; font-weight: 700; color: var(--text); }
+
+        /* ── Login ────────────────────────────────────────────────────── */
+        .login-panel { max-width: 400px; margin: 60px auto; }
+        .login-panel h1 { margin-bottom: 20px; font-size: 20px; }
+
+        /* ── Misc ─────────────────────────────────────────────────────── */
+        .inline-form { display: inline; margin: 0; }
+
+        .site-footer {
+            padding: 14px 32px; font-size: 12px;
+            color: var(--text-light); border-top: 1px solid var(--border);
+            background: var(--surface);
+        }
+
+        /* ── No sidebar (login page) ──────────────────────────────────── */
+        body.no-sidebar .main-wrapper { margin-left: 0; }
+
+        /* ── Responsive ───────────────────────────────────────────────── */
+        @media (max-width: 768px) {
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.open { transform: translateX(0); }
+            .sidebar-overlay.open { display: block; }
+            .sidebar-toggle { display: block; }
+            .main-wrapper { margin-left: 0; }
+            .main-content { padding: 20px 16px; padding-top: 60px; }
+            .form-grid { grid-template-columns: 1fr; }
+            .summary-grid { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body{% if not user.is_authenticated %} class="no-sidebar"{% endif %}>
+
+{% if user.is_authenticated %}
+<button class="sidebar-toggle" id="sidebarToggle" aria-label="Open menu">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <rect x="3" y="6" width="18" height="2" rx="1"/>
+        <rect x="3" y="11" width="18" height="2" rx="1"/>
+        <rect x="3" y="16" width="18" height="2" rx="1"/>
+    </svg>
+</button>
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<aside class="sidebar" id="sidebar">
+    <!-- Brand -->
+    <a class="sidebar-brand"
+       href="{% if user.is_staff %}{% url 'payroll:dashboard' %}{% else %}{% url 'payroll:history' %}{% endif %}">
+        <div class="sidebar-brand-icon">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85
+                         1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16
+                         c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13
+                         2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1
+                         h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5
+                         3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/>
+            </svg>
+        </div>
+        <div>
+            <div class="sidebar-brand-name">Payroll System</div>
+            <div class="sidebar-brand-sub">PhilRice-Batac</div>
+        </div>
+    </a>
+
+    <!-- Navigation -->
+    <nav class="sidebar-nav">
+        {% if user.is_staff %}
+            <span class="sidebar-section-label">Main</span>
+
+            <a href="{% url 'payroll:dashboard' %}"
+               class="{% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/>
+                </svg>
+                Dashboard
+            </a>
+
+            <a href="{% url 'payroll:accounting' %}"
+               class="{% if request.resolver_match.url_name == 'accounting' %}active{% endif %}">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1
+                             0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5
+                             3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7
+                             13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12
+                             15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z"/>
+                </svg>
+                Accounting
+            </a>
+
+            <span class="sidebar-section-label">Deductions</span>
+
+            <a href="{% url 'payroll:deductions' %}"
+               class="{% if request.resolver_match.url_name == 'deductions' %}active{% endif %}">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1
+                             0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5
+                             9H13z"/>
+                </svg>
+                Override Records
+            </a>
+
+            <a href="{% url 'payroll:deduction_config' %}"
+               class="{% if request.resolver_match.url_name == 'deduction_config' %}active{% endif %}">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94
+                             l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22
+                             l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41
+                             h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94
+                             l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61
+                             l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58
+                             c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96
+                             c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84
+                             c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94
+                             l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61
+                             l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6
+                             3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+                </svg>
+                Rate Configuration
+            </a>
+
+            <span class="sidebar-section-label">Employees</span>
+
+            <a href="{% url 'payroll:employee_link' %}"
+               class="{% if request.resolver_match.url_name == 'employee_link' %}active{% endif %}">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66
+                             0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66
+                             5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7
+                             3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05
+                             1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+                </svg>
+                Accounts
+            </a>
+
+            <span class="sidebar-section-label">Reports</span>
+
+            <a href="{% url 'payroll:export_payroll' %}">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+                </svg>
+                Export Excel
+            </a>
+
+        {% else %}
+            <span class="sidebar-section-label">My Payroll</span>
+
+            <a href="{% url 'payroll:history' %}"
+               class="{% if request.resolver_match.url_name == 'history' %}active{% endif %}">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9
+                             12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93
+                             0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21
+                             13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28
+                             2.54.72-1.21-3.5-2.08V8H12z"/>
+                </svg>
+                Payroll History
+            </a>
+        {% endif %}
+    </nav>
+
+    <!-- User footer -->
+    <div class="sidebar-footer">
+        <div class="sidebar-user">
+            <div class="sidebar-avatar">{{ user.username|first|upper }}</div>
+            <div>
+                <div class="sidebar-username">{{ user.username }}</div>
+                <div class="sidebar-role">{% if user.is_staff %}Admin{% else %}Employee{% endif %}</div>
+            </div>
+        </div>
+        <form class="logout-form" method="post" action="{% url 'payroll:logout' %}">
+            {% csrf_token %}
+            <button type="submit" class="logout-btn">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17
+                             17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2
+                             2h8v-2H4V5z"/>
+                </svg>
+                Sign Out
+            </button>
+        </form>
+    </div>
+</aside>
+{% endif %}
+
+<!-- Main content area -->
+<div class="main-wrapper">
+    <main class="main-content">
         {% if messages %}
             <div class="messages">
                 {% for message in messages %}
@@ -43,7 +618,24 @@
     </main>
 
     <footer class="site-footer">
-        <div class="container">Payroll System © 2026</div>
+        Payroll System &copy; 2026 &mdash; PhilRice-Batac
     </footer>
+</div>
+
+<script>
+    const toggle  = document.getElementById('sidebarToggle');
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    if (toggle) {
+        toggle.addEventListener('click', () => {
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('open');
+        });
+        overlay.addEventListener('click', () => {
+            sidebar.classList.remove('open');
+            overlay.classList.remove('open');
+        });
+    }
+</script>
 </body>
 </html>

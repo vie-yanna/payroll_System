@@ -1,0 +1,83 @@
+{% extends 'payroll/base.html' %}
+
+{% block content %}
+<div class="dashboard-header">
+    <div>
+        <h1>Employee Accounts</h1>
+        <p>Create login accounts for employees or link existing ones.</p>
+    </div>
+</div>
+
+<div class="panel">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Employee ID</th>
+                <th>Name</th>
+                <th>Department</th>
+                <th>Linked Account</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for emp in employees %}
+                <tr>
+                    <td>{{ emp.employee_id }}</td>
+                    <td>{{ emp.first_name }} {{ emp.last_name }}</td>
+                    <td>{{ emp.department|default:"—" }}</td>
+                    <td>
+                        {% if emp.user %}
+                            <span class="badge badge-paid">{{ emp.user.username }}</span>
+                        {% else %}
+                            <span class="badge badge-unpaid">No account</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if emp.user %}
+                            <!-- Unlink -->
+                            <form method="post" class="inline-form"
+                                  onsubmit="return confirm('Unlink {{ emp.user.username }} from {{ emp.first_name }}?')">
+                                {% csrf_token %}
+                                <input type="hidden" name="employee_pk" value="{{ emp.pk }}">
+                                <input type="hidden" name="action" value="unlink">
+                                <button type="submit" class="button-link button-link-danger">Unlink</button>
+                            </form>
+                        {% else %}
+                            <!-- Create account inline -->
+                            <button class="text-link"
+                                    onclick="toggleForm('form-{{ emp.pk }}')">
+                                + Create Account
+                            </button>
+                            <div id="form-{{ emp.pk }}" style="display:none; margin-top:.5rem;">
+                                <form method="post" class="inline-form">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="employee_pk" value="{{ emp.pk }}">
+                                    <input type="hidden" name="action" value="create">
+                                    <input type="text" name="username"
+                                           placeholder="Username"
+                                           style="margin-right:.5rem; padding:.3rem .5rem;"
+                                           required>
+                                    <input type="password" name="password"
+                                           placeholder="Password"
+                                           style="margin-right:.5rem; padding:.3rem .5rem;"
+                                           required>
+                                    <button type="submit" class="button">Save</button>
+                                    <button type="button" class="button button-muted"
+                                            onclick="toggleForm('form-{{ emp.pk }}')">Cancel</button>
+                                </form>
+                            </div>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+function toggleForm(id) {
+    const el = document.getElementById(id);
+    el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+</script>
+{% endblock %}
